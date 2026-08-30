@@ -1,0 +1,10 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  commitlint:
+    permissions:
+      contents: read
+    uses: joatverse/.github/.github/workflows/commitlint.yml@main
