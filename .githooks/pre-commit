@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Only staged files, only ones Prettier understands.
+# -z / -d '' pairing survives spaces in filenames.
+mapfile -t -d '' FILES < <(
+  git diff --cached --name-only --diff-filter=ACMR -z \
+    -- '*.js' '*.jsx' '*.ts' '*.tsx' '*.json' '*.css' '*.md'
+)
+
+[ ${#FILES[@]} -eq 0 ] && exit 0
+
+npx --no-install prettier --write -- "${FILES[@]}"
+git add -- "${FILES[@]}"
