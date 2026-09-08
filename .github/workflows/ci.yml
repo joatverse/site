@@ -13,6 +13,12 @@ jobs:
       contents: read
     uses: joatverse/.github/.github/workflows/commitlint.yml@main
 
+  format:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    uses: joatverse/.github/.github/workflows/format.yml@main
+
   release:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     permissions:
