@@ -1,0 +1,76 @@
+name: Deploy (stub)
+
+# Stub that proves the gates before a real deploy exists; the real deploy
+# replaces the echo steps (Step 2 / 4a). Trunk-based promotion: one version
+# goes to dev, then the SAME version goes to production after approval.
+#
+# Each job prints an 8-char fingerprint of DEPLOY_TOKEN (never the value) so
+# you can see which secret it got: an environment secret overrides the
+# repo-level one of the same name.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag to deploy, e.g. v1.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
+    steps:
+      - name: Check the tag exists
+        id: tag
+        # Input goes through env, never inline ${{ }} in the script —
+        # inline would let a crafted input run as shell code.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$VERSION" --jq .sha)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "$VERSION → $sha"
+
+  fallback:
+    # No environment: gets the repo-level secret.
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: echo "repo-level fingerprint $(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -c1-8)"
+
+  dev:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ needs.verify.outputs.sha }}
+        run: |
+          echo "would deploy $VERSION ($SHA) to dev"
+          echo "dev fingerprint $(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -c1-8)"
+
+  production:
+    needs: [verify, dev]
+    runs-on: ubuntu-latest
+    environment: production
+    # Never two production deploys at once; a second one queues.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    steps:
+      - env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ needs.verify.outputs.sha }}
+        run: |
+          echo "would deploy $VERSION ($SHA) to production"
+          echo "production fingerprint $(printf %s "$DEPLOY_TOKEN" | sha256sum | cut -c1-8)"
