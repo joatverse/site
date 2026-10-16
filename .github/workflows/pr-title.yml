@@ -1,0 +1,13 @@
+name: PR title
+
+# Separate from ci.yml on purpose: `edited` re-runs only this check on a retitle,
+# not commitlint + format.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-title:
+    permissions:
+      pull-requests: read
+    uses: joatverse/.github/.github/workflows/pr-title.yml@main
